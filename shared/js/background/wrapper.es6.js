@@ -9,6 +9,10 @@ export function getExtensionVersion () {
     return manifest.version
 }
 
+export const openExtensionPage = (path) => {
+    browser.tabs.create({ url: getExtensionURL(path) })
+}
+
 export async function setBadgeIcon (badgeData) {
     if (typeof browser.action === 'undefined') {
         return await browser.browserAction.setIcon(badgeData)

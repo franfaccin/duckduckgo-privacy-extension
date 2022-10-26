@@ -1222,6 +1222,10 @@
         closeIcon = response
     })
 
+    sendMessage('getShareFeedbackLink', '').then(response => {
+        shareFeedbackLink = response
+    })
+
     // Listen for events from surrogates
     addEventListener('ddg-ctp', (event) => {
         if (!event.detail) return
@@ -1262,6 +1266,10 @@
                 }
             })
         )
+    }
+
+    function openShareFeedbackPage () {
+        sendMessage('openShareFeedbackPage', '')
     }
 
     /*********************************************************
@@ -1310,8 +1318,14 @@
     function makeShareFeedbackLink () {
         const feedbackLink = document.createElement('a')
         feedbackLink.style.cssText = styles.feedbackLink
+        // Display feedback form link for transparency of navigation to happen,
+        // but opens page through background event to avoid browser blocking extension link
         feedbackLink.href = shareFeedbackLink
         feedbackLink.text = 'Share Feedback'
+        feedbackLink.addEventListener('click', function (e) {
+            e.preventDefault()
+            openShareFeedbackPage()
+        })
 
         return feedbackLink
     }
