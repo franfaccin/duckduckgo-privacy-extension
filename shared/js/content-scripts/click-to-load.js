@@ -12,6 +12,15 @@
         })
     }
 
+    function onMessage (messageType, cb) {
+        chrome.runtime.onMessage.addListener((message) => {
+            console.log(message)
+            if (message.messageType === messageType) {
+                cb(message)
+            }
+        })
+    }
+
     function createCustomEvent (eventName, eventDetail) {
         // By default, Firefox protects the event detail Object from the page,
         // leading to "Permission denied to access property" errors.
@@ -945,29 +954,45 @@
         window.dispatchEvent(createCustomEvent('ddg-ctp-ready'))
     }
 
-    function replaceTrackingElement (widget, trackingElement, placeholderElement, hideTrackingElement = false) {
+    function replaceTrackingElement (widget, trackingElement, placeholderElement, hideTrackingElement = false, currentPlaceholder = null) {
         widget.dispatchEvent(trackingElement, 'ddg-ctp-tracking-element')
 
         // Usually the tracking element can simply be replaced with the
         // placeholder, but in some situations that isn't possible and the
         // tracking element must be hidden instead.
         if (hideTrackingElement) {
-            // Take care to note existing styles so that they can be restored.
-            widget.originalElementStyle = { }
-            for (const key of ['display', 'visibility']) {
-                widget.originalElementStyle[key] = [
-                    trackingElement.style.getPropertyValue(key),
-                    trackingElement.style.getPropertyPriority(key)
-                ]
+            // Don't save original element styles if we've already done it
+            if (!widget.originalElementStyle) {
+                // Take care to note existing styles so that they can be restored.
+                widget.originalElementStyle = { }
+                for (const key of ['display', 'visibility']) {
+                    widget.originalElementStyle[key] = [
+                        trackingElement.style.getPropertyValue(key),
+                        trackingElement.style.getPropertyPriority(key)
+                    ]
+                }
             }
-
+            // Don't save original element size if we've already done it
+            if (!widget.originalElementSize) {
+                // Take care to note current size to be used when
+                // tracking element is hidden
+                const { width, height } = trackingElement.getBoundingClientRect()
+                widget.originalElementSize = { width, height }
+            }
             // Hide the tracking element and add the placeholder next to it in
             // the DOM.
             trackingElement.style.setProperty('display', 'none', 'important')
             trackingElement.style.setProperty('visibility', 'hidden', 'important')
             trackingElement.parentElement.insertBefore(placeholderElement, trackingElement)
+            if (currentPlaceholder) {
+                currentPlaceholder.remove()
+            }
         } else {
-            trackingElement.replaceWith(placeholderElement)
+            if (currentPlaceholder) {
+                currentPlaceholder.replaceWith(placeholderElement)
+            } else {
+                trackingElement.replaceWith(placeholderElement)
+            }
         }
 
         widget.dispatchEvent(placeholderElement, 'ddg-ctp-placeholder-element')
@@ -1033,9 +1058,11 @@
         bottomRow.appendChild(previewToggle)
 
         const textButton = makeTextButton(widget.replaceSettings.buttonText, widget.getMode())
+
         const { contentBlock, shadowRoot } = await createContentBlock(
             widget, bottomRow, textButton
         )
+        contentBlock.id = `yt-ctl-dialog-${widget.widgetID}`
         button.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
         textButton.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
 
@@ -1108,12 +1135,13 @@
 
         /** YouTube CTL */
         if (widget.replaceSettings.type === 'youtube-video') {
-            await toggleYouTubeCTL(trackingElement, widget)
+            await replaceYouTubeCTL(trackingElement, widget)
 
-            /** TODO
-             *  Listen to `ddg-settings-youtubePreviewsEnabled` message to update YT CTL state
-             * (ie switch between blocked and preview modes)
-             */
+            // Subscribe to changes to youtubePreviewsEnabled setting
+            // and update the CTL state
+            onMessage('ddg-settings-youtubePreviewsEnabled', () => {
+                replaceYouTubeCTL(trackingElement, widget, true)
+            })
         }
     }
 
@@ -1122,22 +1150,27 @@
      *   The original tracking element (YouTube video iframe)
      * @param {DuckWidget} widget
      *   The CTP 'widget' associated with the tracking element.
+     * @param {boolean} togglePlaceholder
+     *   Boolean indicating if this function should toggle between placeholders,
+     *   because tracking element has already been replaced
      */
-    async function toggleYouTubeCTL (trackingElement, widget) {
+    async function replaceYouTubeCTL (trackingElement, widget, togglePlaceholder = false) {
         const youtubePreviewsEnabled = await getYouTubePreviewsEnabled()
 
         // Show YouTube Preview for embedded video
         if (youtubePreviewsEnabled === true) {
             const { placeholder } = await createYouTubePlaceholder(trackingElement, widget)
+            const currentPlaceholder = togglePlaceholder ? document.getElementById(`yt-ctl-dialog-${widget.widgetID}`) : null
             replaceTrackingElement(
-                widget, trackingElement, placeholder, /* hideTrackingElement= */ true
+                widget, trackingElement, placeholder, /* hideTrackingElement= */ true, currentPlaceholder
             )
 
         // Block YouTube embedded video and display blocking dialog
         } else {
             const { blockingDialog, shadowRoot } = await createYouTubeBlockingDialog(trackingElement, widget)
+            const currentPlaceholder = togglePlaceholder ? document.getElementById(`yt-ctl-preview-${widget.widgetID}`) : null
             replaceTrackingElement(
-                widget, trackingElement, blockingDialog, /* hideTrackingElement= */ true
+                widget, trackingElement, blockingDialog, /* hideTrackingElement= */ true, currentPlaceholder
             )
             // Show the extra unblock link in the header if the placeholder or
             // its parent is too short for the normal unblock button to be visible.
@@ -1654,6 +1687,7 @@
      */
     async function createYouTubePlaceholder (originalElement, widget) {
         const placeholder = document.createElement('div')
+        placeholder.id = `yt-ctl-preview-${widget.widgetID}`
         placeholder.style.cssText = styles.wrapperDiv + styles.youTubeWrapperDiv
 
         // Put our custom font-faces inside the wrapper element, since
@@ -1664,9 +1698,9 @@
         placeholder.appendChild(fontFaceStyleElement)
 
         // Size the placeholder element to match the original video element.
-        // Note: The placeholder does later resize, even if the original video
+        // Note: The placeholder doesn't later resize, even if the original video
         //       element would have.
-        const { width, height } = originalElement.getBoundingClientRect()
+        const { width, height } = widget.originalElementSize || originalElement.getBoundingClientRect()
         placeholder.style.width = width + 'px'
         placeholder.style.height = height + 'px'
 
