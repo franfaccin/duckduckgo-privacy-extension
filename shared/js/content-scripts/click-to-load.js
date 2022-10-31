@@ -599,6 +599,8 @@
             this.gatherDataElements()
             this.entity = entity
             this.widgetID = Math.random()
+            // Boolean if widget is unblocked and content should not be blocked
+            this.isUnblocked = false
         }
 
         dispatchEvent (eventTarget, eventName) {
@@ -816,6 +818,7 @@
             const handleClick = async function handleClick (e) {
                 // Ensure that the click is created by a user event & prevent double clicks from adding more animations
                 if (e.isTrusted && !clicked) {
+                    this.isUnblocked = true
                     clicked = true
                     let isLogin = false
                     if (this.replaceSettings.type === 'loginButton') {
@@ -1155,6 +1158,11 @@
      *   because tracking element has already been replaced
      */
     async function replaceYouTubeCTL (trackingElement, widget, togglePlaceholder = false) {
+        // Skip replacing tracking element if it has already been unblocked
+        if (widget.isUnblocked) {
+            return
+        }
+
         const youtubePreviewsEnabled = await getYouTubePreviewsEnabled()
 
         // Show YouTube Preview for embedded video
