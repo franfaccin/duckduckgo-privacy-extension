@@ -540,11 +540,15 @@
             min-height: 100%;
             height: auto;
         `,
-        youTubeTitle: `
-            flex: 1;
+        youTubeTopSection: `
             font-family: DuckDuckGoPrivacyEssentialsBold;
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
             position: relative;
             padding: 18px 12px 0;
+        `,
+        youTubeTitle: `
             font-size: 14px;
             font-weight: bold;
             line-height: 14px;
@@ -1167,11 +1171,12 @@
 
         // Show YouTube Preview for embedded video
         if (youtubePreviewsEnabled === true) {
-            const { placeholder } = await createYouTubePlaceholder(trackingElement, widget)
+            const { youTubePreview, shadowRoot } = await createYouTubePreview(trackingElement, widget)
             const currentPlaceholder = togglePlaceholder ? document.getElementById(`yt-ctl-dialog-${widget.widgetID}`) : null
             replaceTrackingElement(
-                widget, trackingElement, placeholder, /* hideTrackingElement= */ true, currentPlaceholder
+                widget, trackingElement, youTubePreview, /* hideTrackingElement= */ true, currentPlaceholder
             )
+            showExtraUnblockIfShortPlaceholder(shadowRoot, youTubePreview)
 
         // Block YouTube embedded video and display blocking dialog
         } else {
@@ -1180,16 +1185,24 @@
             replaceTrackingElement(
                 widget, trackingElement, blockingDialog, /* hideTrackingElement= */ true, currentPlaceholder
             )
-            // Show the extra unblock link in the header if the placeholder or
-            // its parent is too short for the normal unblock button to be visible.
-            // Note: This does not take into account the placeholder's vertical
-            //       position in the parent element.
-            const { height: placeholderHeight } = window.getComputedStyle(blockingDialog)
-            const { height: parentHeight } = window.getComputedStyle(blockingDialog.parentElement)
-            if (parseInt(placeholderHeight, 10) <= 200 || parseInt(parentHeight, 10) <= 200) {
-                const titleRowTextButton = shadowRoot.querySelector(`#${titleID + 'TextButton'}`)
-                titleRowTextButton.style.display = 'block'
-            }
+            showExtraUnblockIfShortPlaceholder(shadowRoot, blockingDialog)
+        }
+    }
+
+    /**
+    /* Show the extra unblock link in the header if the placeholder or
+    /* its parent is too short for the normal unblock button to be visible.
+    /* Note: This does not take into account the placeholder's vertical
+    /*       position in the parent element.
+     * @param {Element} shadowRoot
+     * @param {Element} placeholder Placeholder for tracking element
+     */
+    function showExtraUnblockIfShortPlaceholder (shadowRoot, placeholder) {
+        const { height: placeholderHeight } = window.getComputedStyle(placeholder)
+        const { height: parentHeight } = window.getComputedStyle(placeholder.parentElement)
+        if (parseInt(placeholderHeight, 10) <= 200 || parseInt(parentHeight, 10) <= 200) {
+            const titleRowTextButton = shadowRoot.querySelector(`#${titleID + 'TextButton'}`)
+            titleRowTextButton.style.display = 'block'
         }
     }
 
@@ -1688,33 +1701,33 @@
      * as the preview details load.
      * @param {Element} originalElement
      *   The YouTube video iframe element.
-     * @param {Object} widget
+     * @param {DuckWidget} widget
      *   The widget Object. We mutate this to set the autoplay property.
-     * @returns {Object}
-     *   Object containing the placeholder element and its shadowRoot.
+     * @returns {{ youTubePreview: Element, shadowRoot: Element }}
+     *   Object containing the YouTube Preview element and its shadowRoot.
      */
-    async function createYouTubePlaceholder (originalElement, widget) {
-        const placeholder = document.createElement('div')
-        placeholder.id = `yt-ctl-preview-${widget.widgetID}`
-        placeholder.style.cssText = styles.wrapperDiv + styles.youTubeWrapperDiv
+    async function createYouTubePreview (originalElement, widget) {
+        const youTubePreview = document.createElement('div')
+        youTubePreview.id = `yt-ctl-preview-${widget.widgetID}`
+        youTubePreview.style.cssText = styles.wrapperDiv + styles.youTubeWrapperDiv
 
         // Put our custom font-faces inside the wrapper element, since
         // @font-face does not work inside a shadowRoot.
         // See https://github.com/mdn/interactive-examples/issues/887.
         const fontFaceStyleElement = document.createElement('style')
         fontFaceStyleElement.textContent = styles.fontStyle
-        placeholder.appendChild(fontFaceStyleElement)
+        youTubePreview.appendChild(fontFaceStyleElement)
 
         // Size the placeholder element to match the original video element.
         // Note: The placeholder doesn't later resize, even if the original video
         //       element would have.
         const { width, height } = widget.originalElementSize || originalElement.getBoundingClientRect()
-        placeholder.style.width = width + 'px'
-        placeholder.style.height = height + 'px'
+        youTubePreview.style.width = width + 'px'
+        youTubePreview.style.height = height + 'px'
 
         // Protect the contents of our placeholder inside a shadowRoot, to avoid
         // it being styled by the website's stylesheets.
-        const shadowRoot = placeholder.attachShadow({ mode: (await devMode) ? 'open' : 'closed' })
+        const shadowRoot = youTubePreview.attachShadow({ mode: (await devMode) ? 'open' : 'closed' })
 
         const youTubePreviewDiv = document.createElement('div')
         youTubePreviewDiv.style.cssText = styles.youTubeWrapperDiv
@@ -1734,10 +1747,25 @@
         const innerDiv = document.createElement('div')
         innerDiv.style.cssText = styles.youTubePlaceholder
 
+        /** Top section */
+        const topSection = document.createElement('div')
+        topSection.style.cssText = styles.youTubeTopSection
+        innerDiv.appendChild(topSection)
+
         /** Video Title */
         const titleElement = document.createElement('p')
         titleElement.style.cssText = styles.youTubeTitle
-        innerDiv.appendChild(titleElement)
+        topSection.appendChild(titleElement)
+
+        /** Text Button on top section */
+        const textButton = makeTextButton(widget.replaceSettings.buttonText, widget.getMode())
+        textButton.id = titleID + 'TextButton'
+
+        textButton.addEventListener(
+            'click',
+            widget.clickFunction(originalElement, youTubePreview)
+        )
+        topSection.appendChild(textButton)
 
         /** Play Button */
         const playButtonRow = document.createElement('div')
@@ -1753,7 +1781,7 @@
 
         playButton.addEventListener(
             'click',
-            widget.clickFunction(originalElement, placeholder)
+            widget.clickFunction(originalElement, youTubePreview)
         )
         playButtonRow.appendChild(playButton)
         innerDiv.appendChild(playButtonRow)
@@ -1810,6 +1838,6 @@
         const feedbackRow = makeShareFeedbackRow()
         shadowRoot.appendChild(feedbackRow)
 
-        return { placeholder, shadowRoot }
+        return { youTubePreview, shadowRoot }
     }
 })()
