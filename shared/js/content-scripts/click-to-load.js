@@ -1481,6 +1481,7 @@
         const icon = await sendMessage('getImage', entityData[entity].modalIcon)
 
         const modalContainer = document.createElement('div')
+        modalContainer.setAttribute('data-key', 'modal')
         modalContainer.style.cssText = styles.modalContainer
 
         const closeModal = () => {
@@ -1528,11 +1529,13 @@
         buttonRow.style.cssText = styles.modalButtonRow
         const allowButton = makeButton(entityData[entity].modalAcceptText, 'lightMode')
         allowButton.style.cssText += styles.modalButton + 'margin-bottom: 8px;'
+        allowButton.setAttribute('data-key', 'allow')
         allowButton.addEventListener('click', function doLogin () {
             acceptFunction(...acceptFunctionParams)
             document.body.removeChild(modalContainer)
         })
         const rejectButton = makeButton(entityData[entity].modalRejectText, 'cancelMode')
+        rejectButton.setAttribute('data-key', 'reject')
         rejectButton.style.cssText += styles.modalButton
         rejectButton.addEventListener('click', closeModal)
 
