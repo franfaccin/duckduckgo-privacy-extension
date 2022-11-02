@@ -14,7 +14,6 @@
 
     function onMessage (messageType, cb) {
         chrome.runtime.onMessage.addListener((message) => {
-            console.log(message)
             if (message.messageType === messageType) {
                 cb(message)
             }
