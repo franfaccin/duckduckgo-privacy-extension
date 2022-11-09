@@ -447,6 +447,9 @@
             border: 0;
             padding: 0;
             margin: 0;
+            max-width: 600px;
+            min-height: 300px;
+            height: 300px;
         `,
         toggleButtonWrapper: `
             display: flex;
@@ -510,11 +513,11 @@
             border-radius: 12px;
             height: calc(100% - 30px);
         `,
-        youTubeDialogButtonRow: `
+        youTubeDialogBottomRow: `
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: space-between;
+            justify-content: flex-end;
             height: 100%;
         `,
         youTubePlaceholder: `
@@ -578,8 +581,9 @@
             flex: 1;
             display: flex;
             flex-direction: column;
-            justify-content: center;
+            justify-content: flex-end;
             align-items: center;
+            padding: 18px 12px;
         `,
         youTubePreviewToggleText: `
             color: #EEEEEE;
@@ -1040,9 +1044,11 @@
     }
 
     async function createYouTubeBlockingDialog (trackingElement, widget) {
-        const bottomRow = document.createElement('div')
-        bottomRow.style.cssText = styles.youTubeDialogButtonRow
+        const button = makeButton(widget.replaceSettings.buttonText, widget.getMode())
+        const textButton = makeTextButton(widget.replaceSettings.buttonText, widget.getMode())
 
+        const bottomRow = document.createElement('div')
+        bottomRow.style.cssText = styles.youTubeDialogBottomRow
         const previewToggle = makeToggleButtonWithText(
             widget.replaceSettings.previewToggleText,
             widget.getMode(),
@@ -1058,15 +1064,10 @@
                 value: true
             }), widget.entity)
         )
-
-        const button = makeButton(widget.replaceSettings.buttonText, widget.getMode())
-        bottomRow.appendChild(button)
         bottomRow.appendChild(previewToggle)
 
-        const textButton = makeTextButton(widget.replaceSettings.buttonText, widget.getMode())
-
         const { contentBlock, shadowRoot } = await createContentBlock(
-            widget, bottomRow, textButton
+            widget, button, textButton, null, bottomRow
         )
         contentBlock.id = `yt-ctl-dialog-${widget.widgetID}`
         button.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
@@ -1595,7 +1596,7 @@
     }
 
     // Create the content block to replace other divs/iframes with
-    async function createContentBlock (widget, button, textButton, img) {
+    async function createContentBlock (widget, button, textButton, img, bottomRow) {
         const contentBlock = document.createElement('div')
         contentBlock.style.cssText = styles.wrapperDiv
 
@@ -1678,7 +1679,11 @@
         const buttonRow = document.createElement('div')
         buttonRow.style.cssText = styles.buttonRow
         buttonRow.appendChild(button)
-        contentRow.appendChild(buttonRow)
+        contentText.appendChild(buttonRow)
+
+        if (bottomRow) {
+            contentRow.appendChild(bottomRow)
+        }
 
         /** Share Feedback Link */
         if (widget.replaceSettings.type === 'youtube-video') {
