@@ -1828,7 +1828,7 @@
         widget.autoplay = false
         // We use .then() instead of await here to show the placeholder right away
         // while the YouTube endpoint takes it time to respond.
-        getYouTubeVideoDetails(originalElement.src).then(
+        getYouTubeVideoDetails(originalElement.src || originalElement.getAttribute('data-src')).then(
             ({ status, title, previewImage }) => {
                 if (status === 'success') {
                     titleElement.innerText = title
