@@ -222,7 +222,7 @@
             font-family: DuckDuckGoPrivacyEssentials;
             line-height: 1;
         `,
-        dialogBlock: `
+        youTubeDialogBlock: `
             height: calc(100% - 30px);
         `,
         imgRow: `
@@ -449,7 +449,6 @@
             margin: 0;
             max-width: 600px;
             min-height: 300px;
-            height: 300px;
         `,
         toggleButtonWrapper: `
             display: flex;
@@ -510,7 +509,15 @@
         youTubeWrapperDiv: `
             position: relative;
             overflow: hidden;
+            max-width: initial;
+            min-height: initial;
+        `,
+        youTubeDialogDiv: `
+            position: relative;
+            overflow: hidden;
             border-radius: 12px;
+            max-width: initial;
+            min-height: initial;
             height: calc(100% - 30px);
         `,
         youTubeDialogBottomRow: `
@@ -1070,6 +1077,8 @@
             widget, button, textButton, null, bottomRow
         )
         contentBlock.id = `yt-ctl-dialog-${widget.widgetID}`
+        contentBlock.style.cssText += styles.wrapperDiv + styles.youTubeWrapperDiv
+
         button.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
         textButton.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
 
@@ -1080,9 +1089,10 @@
         const {
             width: videoWidth,
             height: videoHeight
-        } = window.getComputedStyle(trackingElement)
-        contentBlock.style.width = videoWidth
-        contentBlock.style.height = videoHeight
+        } = widget.originalElementSize || trackingElement.getBoundingClientRect()
+
+        contentBlock.style.width = videoWidth + 'px'
+        contentBlock.style['min-height'] = videoHeight + 'px'
 
         return {
             blockingDialog: contentBlock,
@@ -1632,7 +1642,7 @@
         const element = document.createElement('div')
         element.style.cssText = styles.block + styles[widget.getMode()].background + styles[widget.getMode()].textFont
         if (widget.replaceSettings.type === 'youtube-video') {
-            element.style.cssText += styles.dialogBlock
+            element.style.cssText += styles.youTubeDialogBlock
         }
         element.className = wrapperClass
         shadowRoot.appendChild(element)
@@ -1737,7 +1747,7 @@
         const shadowRoot = youTubePreview.attachShadow({ mode: (await devMode) ? 'open' : 'closed' })
 
         const youTubePreviewDiv = document.createElement('div')
-        youTubePreviewDiv.style.cssText = styles.youTubeWrapperDiv
+        youTubePreviewDiv.style.cssText = styles.youTubeDialogDiv
         shadowRoot.appendChild(youTubePreviewDiv)
 
         /** Preview Image */
