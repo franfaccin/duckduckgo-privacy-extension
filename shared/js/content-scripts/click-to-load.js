@@ -509,11 +509,22 @@
                 left: 1px;
             `
         },
+        placeholderWrapperDiv: `
+            position: relative;
+            overflow: hidden;
+            border-radius: 12px;
+            box-sizing: border-box;
+            max-width: initial;
+            min-width: 410px;
+            min-height: 300px;
+            margin: auto;
+        `,
         youTubeWrapperDiv: `
             position: relative;
             overflow: hidden;
             max-width: initial;
-            min-height: initial;
+            min-width: 410px;
+            min-height: 300px;
             height: 100%;
         `,
         youTubeDialogDiv: `
@@ -594,7 +605,7 @@
             flex-direction: column;
             justify-content: flex-end;
             align-items: center;
-            padding: 18px 12px;
+            padding: 0 12px 18px;
         `,
         youTubePreviewToggleText: `
             color: #EEEEEE;
@@ -900,10 +911,10 @@
                     // If hidden, restore the tracking element's styles to make
                     // it visible again.
                     if (this.originalElementStyle) {
-                        for (const [key, [value, priority]] of
-                            Object.entries(this.originalElementStyle)) {
+                        for (const key of ['display', 'visibility']) {
+                            const value = this.originalElementStyle[key][0]
                             if (value) {
-                                fbElement.style.setProperty(key, value, priority)
+                                fbElement.style.setProperty(key, value)
                             } else {
                                 fbElement.style.removeProperty(key)
                             }
@@ -985,20 +996,7 @@
             // Don't save original element styles if we've already done it
             if (!widget.originalElementStyle) {
                 // Take care to note existing styles so that they can be restored.
-                widget.originalElementStyle = { }
-                for (const key of ['display', 'visibility']) {
-                    widget.originalElementStyle[key] = [
-                        trackingElement.style.getPropertyValue(key),
-                        trackingElement.style.getPropertyPriority(key)
-                    ]
-                }
-            }
-            // Don't save original element size if we've already done it
-            if (!widget.originalElementSize) {
-                // Take care to note current size to be used when
-                // tracking element is hidden
-                const { width, height } = trackingElement.getBoundingClientRect()
-                widget.originalElementSize = { width, height }
+                widget.originalElementStyle = getOriginalElementStyle(trackingElement, widget)
             }
             // Hide the tracking element and add the placeholder next to it in
             // the DOM.
@@ -1086,17 +1084,10 @@
         button.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
         textButton.addEventListener('click', widget.clickFunction(trackingElement, contentBlock))
 
-        // Size the placeholder element to match the original video
-        // element.
-        // Note: If the website later resizes the video element, the
-        //       placeholder will not resize to match.
-        const {
-            width: videoWidth,
-            height: videoHeight
-        } = widget.originalElementSize || trackingElement.getBoundingClientRect()
-
-        contentBlock.style.width = videoWidth + 'px'
-        contentBlock.style['min-height'] = videoHeight + 'px'
+        // Size the placeholder element to match the original video element styles.
+        // If no styles are in place, it will get its current size
+        const originalStyles = getOriginalElementStyle(trackingElement, widget)
+        copyStylesTo(originalStyles, contentBlock)
 
         return {
             blockingDialog: contentBlock,
@@ -1386,6 +1377,7 @@
     function makeShareFeedbackLink () {
         const feedbackLink = document.createElement('a')
         feedbackLink.style.cssText = styles.feedbackLink
+        feedbackLink.target = '_blank'
         // Display feedback form link for transparency of navigation to happen,
         // but opens page through background event to avoid browser blocking extension link
         feedbackLink.href = shareFeedbackLink
@@ -1717,6 +1709,53 @@
     }
 
     /**
+     * Reads and stores a set of styles from the original tracking element, and then returns it.
+     * @param {Element} originalElement Original tracking element (ie iframe)
+     * @param {DuckWidget} widget The widget Object.
+     * @returns {{[key: string]: string[]}} Object with styles read from original element.
+     */
+    function getOriginalElementStyle (originalElement, widget) {
+        if (widget.originalElementStyle) {
+            console.log('widget.originalElementStyle', widget.originalElementStyle.toString())
+            return widget.originalElementStyle
+        }
+
+        const stylesToCopy = ['display', 'visibility', 'position', 'top', 'bottom', 'left', 'right',
+            'transform', 'margin', 'width', 'max-width', 'height', 'max-height']
+        widget.originalElementStyle = {}
+        const allOriginalElementStyles = getComputedStyle(originalElement)
+        for (const key of stylesToCopy) {
+            widget.originalElementStyle[key] = [
+                allOriginalElementStyles[key],
+                originalElement.style.getPropertyPriority(key)
+            ]
+        }
+
+        // Try to get original height/width styles from element,
+        // otherwise measures current size and stores that
+        const { height: heightViewValue, width: widthViewValue } = originalElement.getBoundingClientRect()
+        let styleHeight = originalElement.height
+        styleHeight += styleHeight.search(/^\d+(\.\d+)*$/g) > -1 ? 'px' : ''
+        widget.originalElementStyle.height[0] = styleHeight || widget.originalElementStyle.height[0] || heightViewValue
+
+        let styleWidth = originalElement.width
+        styleWidth += styleWidth.search(/^\d+(\.\d+)*$/g) > -1 ? 'px' : ''
+        widget.originalElementStyle.width[0] = styleWidth || widget.originalElementStyle.width[0] || widthViewValue
+
+        return widget.originalElementStyle
+    }
+
+    /**
+     * Copy list of styles to provided element
+     * @param {{[key: string]: string[]}} originalStyles Object with styles read from original element.
+     * @param {Element} element Node element to have the styles copied to
+     */
+    function copyStylesTo (originalStyles, element) {
+        const { display, visibility, ...filteredStyles } = originalStyles
+        const cssText = Object.keys(filteredStyles).reduce((cssAcc, key) => (cssAcc + `${key}: ${filteredStyles[key][0]};`), '')
+        element.style.cssText += cssText
+    }
+    /**
      * Creates the placeholder element to replace a YouTube video iframe element
      * with a preview image. Mutates widget Object to set the autoplay property
      * as the preview details load.
@@ -1730,7 +1769,7 @@
     async function createYouTubePreview (originalElement, widget) {
         const youTubePreview = document.createElement('div')
         youTubePreview.id = `yt-ctl-preview-${widget.widgetID}`
-        youTubePreview.style.cssText = styles.wrapperDiv + styles.youTubeWrapperDiv
+        youTubePreview.style.cssText = styles.wrapperDiv + styles.placeholderWrapperDiv
 
         // Put our custom font-faces inside the wrapper element, since
         // @font-face does not work inside a shadowRoot.
@@ -1739,12 +1778,10 @@
         fontFaceStyleElement.textContent = styles.fontStyle
         youTubePreview.appendChild(fontFaceStyleElement)
 
-        // Size the placeholder element to match the original video element.
-        // Note: The placeholder doesn't later resize, even if the original video
-        //       element would have.
-        const { width, height } = widget.originalElementSize || originalElement.getBoundingClientRect()
-        youTubePreview.style.width = width + 'px'
-        youTubePreview.style.height = height + 'px'
+        // Size the placeholder element to match the original video element styles.
+        // If no styles are in place, it will get its current size
+        const originalStyles = getOriginalElementStyle(originalElement, widget)
+        copyStylesTo(originalStyles, youTubePreview)
 
         // Protect the contents of our placeholder inside a shadowRoot, to avoid
         // it being styled by the website's stylesheets.
