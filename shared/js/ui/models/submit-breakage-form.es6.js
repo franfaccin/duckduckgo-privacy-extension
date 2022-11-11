@@ -25,6 +25,7 @@ module.exports = function (category) {
     const blockedTrackers = collectAllUrls(aggregationStats.blockAction.list)
     const surrogates = collectAllUrls(aggregationStats.redirectAction.list)
     const urlParametersRemoved = this.tab.urlParametersRemoved ? 'true' : 'false'
+    const ctlYouTubeAdded = this.tab.ctlYouTubeAdded ? 'true' : 'false'
     const ampUrl = this.tab.ampUrl || undefined
     const brokenSiteParams = new URLSearchParams({
         category,
@@ -32,6 +33,7 @@ module.exports = function (category) {
         upgradedHttps: upgradedHttps.toString(),
         tds: this.tds,
         urlParametersRemoved,
+        ctlYouTubeAdded,
         ampUrl,
         blockedTrackers,
         surrogates

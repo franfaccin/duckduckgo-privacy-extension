@@ -1146,6 +1146,7 @@
 
         /** YouTube CTL */
         if (widget.replaceSettings.type === 'youtube-video') {
+            sendMessage('updateYouTubeCTLAddedFlag', true)
             await replaceYouTubeCTL(trackingElement, widget)
 
             // Subscribe to changes to youtubePreviewsEnabled setting

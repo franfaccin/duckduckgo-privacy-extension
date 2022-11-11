@@ -113,6 +113,7 @@ describe('Tab', () => {
                 ampUrl: null,
                 cleanAmpUrl: null,
                 requestId: 123,
+                ctlYouTubeAdded: false,
                 status: 200,
                 statusCode: null
             }
