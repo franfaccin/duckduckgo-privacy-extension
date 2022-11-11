@@ -224,6 +224,8 @@
         `,
         youTubeDialogBlock: `
             height: calc(100% - 30px);
+            max-width: initial;
+            min-height: initial;
         `,
         imgRow: `
             display: flex;
@@ -325,14 +327,15 @@
             margin: 20px auto 10px;
             padding: 0px 30px;
             text-align: center;
+            margin-top: auto;
         `,
         contentText: `
             font-family: DuckDuckGoPrivacyEssentials;
             font-size: 14px;
             line-height: 21px;
-            margin: auto;
             padding: 0px 40px;
             text-align: center;
+            margin: 0 auto auto;
         `,
         icon: `
             height: 80px;
@@ -511,6 +514,7 @@
             overflow: hidden;
             max-width: initial;
             min-height: initial;
+            height: 100%;
         `,
         youTubeDialogDiv: `
             position: relative;
@@ -525,7 +529,7 @@
             flex-direction: column;
             align-items: center;
             justify-content: flex-end;
-            height: 100%;
+            margin-top: auto;
         `,
         youTubePlaceholder: `
             display: flex;
