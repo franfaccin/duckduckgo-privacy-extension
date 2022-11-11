@@ -372,10 +372,6 @@ export function debuggerMessage (message, sender) {
     devtools.postMessage(sender.tab?.id, message.action, message.message)
 }
 
-export function getShareFeedbackLink () {
-    return browserWrapper.getExtensionURL('/html/feedback.html')
-}
-
 export function openShareFeedbackPage () {
     return browserWrapper.openExtensionPage('/html/feedback.html')
 }

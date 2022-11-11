@@ -39,7 +39,6 @@
     }
     let logoImg
     let closeIcon
-    let shareFeedbackLink
     const titleID = 'DuckDuckGoPrivacyEssentialsCTLElementTitle'
     const entities = []
     const ddgFont = chrome.runtime.getURL('public/font/ProximaNova-Reg-webfont.woff')
@@ -1281,10 +1280,6 @@
         closeIcon = response
     })
 
-    sendMessage('getShareFeedbackLink', '').then(response => {
-        shareFeedbackLink = response
-    })
-
     // Listen for events from surrogates
     addEventListener('ddg-ctp', (event) => {
         if (!event.detail) return
@@ -1378,10 +1373,9 @@
         const feedbackLink = document.createElement('a')
         feedbackLink.style.cssText = styles.feedbackLink
         feedbackLink.target = '_blank'
-        // Display feedback form link for transparency of navigation to happen,
-        // but opens page through background event to avoid browser blocking extension link
-        feedbackLink.href = shareFeedbackLink
+        feedbackLink.href = '#'
         feedbackLink.text = 'Share Feedback'
+        // Open Feedback Form page through background event to avoid browser blocking extension link
         feedbackLink.addEventListener('click', function (e) {
             e.preventDefault()
             openShareFeedbackPage()
