@@ -1185,6 +1185,7 @@
 
         // Block YouTube embedded video and display blocking dialog
         } else {
+            widget.autoplay = false
             const { blockingDialog, shadowRoot } = await createYouTubeBlockingDialog(trackingElement, widget)
             const currentPlaceholder = togglePlaceholder ? document.getElementById(`yt-ctl-preview-${widget.widgetID}`) : null
             replaceTrackingElement(
@@ -1711,7 +1712,6 @@
      */
     function getOriginalElementStyle (originalElement, widget) {
         if (widget.originalElementStyle) {
-            console.log('widget.originalElementStyle', widget.originalElementStyle.toString())
             return widget.originalElementStyle
         }
 
